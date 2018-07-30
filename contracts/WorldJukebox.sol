@@ -1,31 +1,40 @@
-pragma solidity ^0.4.21;
-
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
-
-
+pragma solidity ^0.4.24;
+import './Ownable.sol';
 contract WorldJukebox is Ownable {
 
-	string public currentTrack;
-	uint public currentBid;
+	uint public highestBid;
+	bytes32 public currentTrack;
 	address public highestBidder;
-	uint public blockNumber;
-	uint public test;
+	uint public blockSet;
 
-	event NewTrack( string currentTrack, uint currentBid, uint blockNumber);
+	event NewHighestBid(uint _bid, bytes32 _track, address _bidder);
 
 	constructor(){
-
-	}	 
-
-	function bidTrack(string _newTrack) payable{
-		uint newBlockNumber = block.number;
-		uint test = (newBlockNumber-blockNumber)/10*currentBid;
-		require(msg.value > test);
-
-		currentTrack = _newTrack;
-		blockNumber = newBlockNumber;
-		highestBidder = msg.sender;
-		currentBid = msg.value;
+		blockSet = block.number;
 	}
-}
+	function currentBid() public returns(uint){
+		return (highestBid - highestBid*(block.number-blockSet)/20);
+	}
+	function bidTrack(bytes32 _track) payable{
+		
+		require(msg.value > (highestBid-(highestBid*(block.number-blockSet)/10)));
 
+		//Test this for out of gas exception
+		if(highestBid != 0 ){
+			//Transfer funds back to previous highest _bidder
+			highestBidder.transfer(highestBid);
+			highestBid = 0;
+		}
+
+		highestBid = msg.value;
+		currentTrack = _track;
+		highestBidder = msg.sender;
+		blockSet = block.number;
+		emit NewHighestBid(highestBid, currentTrack, highestBidder);
+	}
+
+	function withdraw() onlyOwner {
+		owner.transfer(this.balance);
+	}
+
+}
